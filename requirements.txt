@@ -1,0 +1,11 @@
+langchain
+langchain-openai
+langchain-community
+faiss-cpu
+pypdf
+python-dotenv
+fastapi
+uvicorn
+python-multipart
+langchain-text-splitters
+rank-bm25

@@ -2,12 +2,16 @@ import uuid
 import os
 import shutil
 import logging
-from datetime import datetime
+import asyncio
+from datetime import datetime, timedelta
 from config import UPLOAD_DIR
 from ingestion import DocumentIngestion
 from chain import QAChain
 
 logger = logging.getLogger(__name__)
+
+# Session expiry time in minutes
+SESSION_EXPIRY_MINUTES = 30
 
 
 class Session:
@@ -188,6 +192,37 @@ class SessionManager:
             self.delete_session(session_id)
         logger.info("SessionManager: All sessions cleaned up")
 
+    def cleanup_expired_sessions(self):
+        """Clean up sessions older than SESSION_EXPIRY_MINUTES."""
+        now = datetime.now()
+        expired_sessions = []
+
+        for session_id, session in self.sessions.items():
+            age = now - session.created_at
+            if age > timedelta(minutes=SESSION_EXPIRY_MINUTES):
+                expired_sessions.append(session_id)
+
+        for session_id in expired_sessions:
+            logger.info(f"SessionManager: Session {session_id} expired after {SESSION_EXPIRY_MINUTES} minutes")
+            self.delete_session(session_id)
+
+        if expired_sessions:
+            logger.info(f"SessionManager: Cleaned up {len(expired_sessions)} expired sessions")
+
+        return len(expired_sessions)
+
 
 # Global session manager instance
 session_manager = SessionManager()
+
+
+async def session_cleanup_task():
+    """Background task to cleanup expired sessions every 5 minutes."""
+    while True:
+        await asyncio.sleep(300)  # Check every 5 minutes
+        try:
+            cleaned = session_manager.cleanup_expired_sessions()
+            if cleaned > 0:
+                logger.info(f"Background cleanup: Removed {cleaned} expired sessions")
+        except Exception as e:
+            logger.error(f"Background cleanup error: {str(e)}")

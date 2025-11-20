@@ -5,7 +5,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import os
 import logging
-from session_manager import session_manager
+from session_manager import session_manager, session_cleanup_task
+import asyncio
 from config import UPLOAD_DIR
 
 # Setup logging
@@ -45,6 +46,13 @@ class QuestionRequest(BaseModel):
 class SessionResponse(BaseModel):
     session_id: str
     message: str
+
+
+# Startup event - start background cleanup task
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(session_cleanup_task())
+    logger.info("Started session cleanup background task (30 min expiry)")
 
 
 # Routes
